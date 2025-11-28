@@ -32,7 +32,7 @@ The environment is fully reproducible using Docker Compose.
 1. **Clone the repository:**
 
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/omaryesith/prono.git
     cd prono
     ```
 
