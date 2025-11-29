@@ -1,0 +1,7 @@
+# Ignore local dependencies and builds
+**/node_modules
+**/dist
+**/.git
+**/.env
+**/.venv
+**/pycache

@@ -6,15 +6,18 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
 django_asgi_app = get_asgi_application()
 
-from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.urls import path
 from projects.consumers import ProjectConsumer
 
+from core.middleware import JwtAuthMiddleware
+
 application = ProtocolTypeRouter(
     {
+        # HTTP is handled by Django's ASGI app
         "http": django_asgi_app,
-        "websocket": AuthMiddlewareStack(
+        # WebSockets are handled by JWT auth middleware + router
+        "websocket": JwtAuthMiddleware(
             URLRouter(
                 [
                     path("ws/projects/<int:project_id>/", ProjectConsumer.as_asgi()),

@@ -1,0 +1,500 @@
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+  Send,
+  User,
+  Server,
+  Wifi,
+  WifiOff,
+  Plus,
+  CheckCircle,
+  List,
+  Box,
+} from "lucide-react";
+
+// --- CONFIGURACIÓN ---
+const API_URL = "http://localhost:80/api";
+const WS_URL = "ws://localhost:80/ws/projects";
+
+// --- TYPES ---
+interface Message {
+  type: string;
+  sender: string;
+  text: string;
+  timestamp: string;
+}
+
+interface AuthToken {
+  access: string;
+  refresh: string;
+}
+
+interface Project {
+  id: number;
+  name: string;
+  description: string;
+  owner_id: number;
+}
+
+interface Task {
+  id: number;
+  title: string;
+  is_completed: boolean;
+  assigned_to_id: number | null;
+}
+
+// --- CUSTOM HOOK: WEBSOCKET ---
+const usePronoSocket = (projectId: number | null, token: string | null) => {
+  const [status, setStatus] = useState<
+    "DISCONNECTED" | "CONNECTING" | "CONNECTED"
+  >("DISCONNECTED");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const socketRef = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    if (!projectId || !token) return;
+
+    // Resetear mensajes al cambiar de proyecto
+    setMessages([]);
+
+    const ws = new WebSocket(`${WS_URL}/${projectId}/?token=${token}`);
+    socketRef.current = ws;
+    setStatus("CONNECTING");
+
+    ws.onopen = () => {
+      setStatus("CONNECTED");
+      console.log("🔌 WS Conectado");
+    };
+
+    ws.onclose = () => {
+      setStatus("DISCONNECTED");
+      console.log("🔌 WS Desconectado");
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (
+        data.type === "chat_message" ||
+        data.type === "connection_established"
+      ) {
+        setMessages((prev) => [...prev, data]);
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [projectId, token]);
+
+  const sendMessage = useCallback((text: string) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
+        JSON.stringify({
+          type: "chat_message",
+          text: text,
+        }),
+      );
+    }
+  }, []);
+
+  return { status, messages, sendMessage };
+};
+
+// --- COMPONENTE PRINCIPAL ---
+function App() {
+  // --- ESTADO GLOBAL ---
+  const [token, setToken] = useState<string | null>(null);
+  const [username, setUsername] = useState("admin");
+  const [password, setPassword] = useState("admin");
+
+  // --- ESTADO DE DATOS ---
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  // --- ESTADO DE FORMULARIOS ---
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [chatInput, setChatInput] = useState("");
+
+  // Hook del Chat (se conecta al proyecto seleccionado)
+  const { status, messages, sendMessage } = usePronoSocket(
+    selectedProject?.id || null,
+    token,
+  );
+
+  // --- API CALLS ---
+
+  // 1. Cargar Proyectos
+  const fetchProjects = useCallback(async () => {
+    if (!token) return;
+    const res = await fetch(`${API_URL}/projects/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setProjects(data);
+      // Seleccionar el primero por defecto si no hay seleccionado
+      if (!selectedProject && data.length > 0) setSelectedProject(data[0]);
+    }
+  }, [token, selectedProject]);
+
+  // 2. Cargar Tareas (Cuando cambia el proyecto)
+  const fetchTasks = useCallback(async () => {
+    if (!token || !selectedProject) return;
+    // Django Ninja endpoint para detalles del proyecto (incluye tareas anidadas o lo hacemos aparte)
+    // Usaremos el endpoint de detalle que creamos: GET /projects/{id}
+    const res = await fetch(`${API_URL}/projects/${selectedProject.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      // Asumiendo que el serializer ProjectOut devuelve 'tasks'
+      setTasks(data.tasks || []);
+    }
+  }, [token, selectedProject]);
+
+  // Efectos de carga
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  // --- HANDLERS ---
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`${API_URL}/token/pair`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      if (response.ok) {
+        const data: AuthToken = await response.json();
+        setToken(data.access);
+      } else {
+        alert("Credenciales incorrectas");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de conexión");
+    }
+  };
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProjectName.trim()) return;
+    const res = await fetch(`${API_URL}/projects/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name: newProjectName }),
+    });
+    if (res.ok) {
+      setNewProjectName("");
+      fetchProjects();
+    }
+  };
+
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim() || !selectedProject) return;
+    const res = await fetch(`${API_URL}/projects/${selectedProject.id}/tasks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ title: newTaskTitle }),
+    });
+    if (res.ok) {
+      setNewTaskTitle("");
+      fetchTasks(); // Recargar tareas
+    }
+  };
+
+  const handleCompleteTask = async (taskId: number) => {
+    const res = await fetch(`${API_URL}/projects/tasks/${taskId}/complete`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      fetchTasks(); // Actualizar UI local
+      // NOTA: La notificación WebSocket llegará por el chat automáticamente ;)
+    } else {
+      alert("Error o no tienes permisos");
+    }
+  };
+
+  const handleSendChat = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    sendMessage(chatInput);
+    setChatInput("");
+  };
+
+  // --- RENDER: LOGIN ---
+  if (!token) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md border border-gray-700">
+          <div className="flex justify-center mb-6">
+            <div className="bg-indigo-600 p-3 rounded-full">
+              <Server className="w-8 h-8 text-white" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-center text-white mb-2">
+            Prono System
+          </h1>
+          <p className="text-gray-400 text-center mb-6">
+            Plataforma de Gestión en Tiempo Real
+          </p>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <input
+              type="text"
+              placeholder="Usuario"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+            <input
+              type="password"
+              placeholder="Contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+            <button
+              type="submit"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition"
+            >
+              Ingresar
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER: DASHBOARD ---
+  return (
+    <div className="h-screen bg-gray-900 text-gray-100 flex overflow-hidden">
+      {/* 1. SIDEBAR: PROYECTOS */}
+      <aside className="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
+        <div className="p-4 border-b border-gray-700 flex items-center gap-2">
+          <Box className="text-indigo-500" />
+          <h2 className="font-bold text-lg">Proyectos</h2>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {projects.map((proj) => (
+            <button
+              key={proj.id}
+              onClick={() => setSelectedProject(proj)}
+              className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition ${selectedProject?.id === proj.id ? "bg-indigo-600 text-white" : "hover:bg-gray-700 text-gray-300"}`}
+            >
+              <span className="font-medium truncate">{proj.name}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="p-4 border-t border-gray-700 bg-gray-800">
+          <form onSubmit={handleCreateProject} className="flex gap-2">
+            <input
+              className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+              placeholder="Nuevo proyecto..."
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="bg-green-600 p-1 rounded hover:bg-green-700 text-white"
+            >
+              <Plus size={18} />
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      {/* 2. PANEL CENTRAL: TAREAS */}
+      <main className="flex-1 flex flex-col min-w-0 bg-gray-900">
+        <header className="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center shadow-md z-10">
+          <div>
+            <h1 className="text-xl font-bold text-white">
+              {selectedProject
+                ? selectedProject.name
+                : "Selecciona un proyecto"}
+            </h1>
+            <p className="text-xs text-gray-400">
+              ID: {selectedProject?.id} • Dueño ID: {selectedProject?.owner_id}
+            </p>
+          </div>
+          <div
+            className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border ${status === "CONNECTED" ? "bg-green-900/30 text-green-400 border-green-800" : "bg-red-900/30 text-red-400 border-red-800"}`}
+          >
+            {status === "CONNECTED" ? (
+              <Wifi size={14} />
+            ) : (
+              <WifiOff size={14} />
+            )}
+            {status}
+          </div>
+        </header>
+
+        {selectedProject ? (
+          <div className="flex-1 p-6 overflow-y-auto">
+            {/* Formulario Nueva Tarea */}
+            <div className="mb-8">
+              <form onSubmit={handleCreateTask} className="flex gap-4">
+                <input
+                  className="flex-1 bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  placeholder="¿Qué hay que hacer hoy?"
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                />
+                <button
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2"
+                >
+                  <Plus size={20} /> Agregar Tarea
+                </button>
+              </form>
+            </div>
+
+            {/* Lista de Tareas */}
+            <div className="space-y-3">
+              {tasks.length === 0 && (
+                <p className="text-gray-500 text-center mt-10">
+                  No hay tareas aún.
+                </p>
+              )}
+              {tasks.map((task) => (
+                <div
+                  key={task.id}
+                  className={`p-4 rounded-xl border flex items-center justify-between transition ${task.is_completed ? "bg-gray-800/50 border-gray-700 opacity-60" : "bg-gray-800 border-gray-600"}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <List
+                      className={
+                        task.is_completed ? "text-green-500" : "text-gray-400"
+                      }
+                      size={20}
+                    />
+                    <span
+                      className={`text-lg ${task.is_completed ? "line-through text-gray-500" : "text-gray-100"}`}
+                    >
+                      {task.title}
+                    </span>
+                  </div>
+                  {!task.is_completed && (
+                    <button
+                      onClick={() => handleCompleteTask(task.id)}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-green-600/20 text-green-400 hover:bg-green-600 hover:text-white rounded-lg border border-green-600/30 transition"
+                    >
+                      <CheckCircle size={16} /> Completar
+                    </button>
+                  )}
+                  {task.is_completed && (
+                    <span className="text-green-500 text-sm font-medium px-3">
+                      Completada
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-gray-500">
+            Selecciona un proyecto para comenzar
+          </div>
+        )}
+      </main>
+
+      {/* 3. PANEL DERECHO: CHAT */}
+      <aside className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col shadow-2xl">
+        <div className="p-4 border-b border-gray-700 bg-gray-800">
+          <h3 className="font-bold flex items-center gap-2">
+            <Server size={18} className="text-indigo-400" />
+            Actividad del Proyecto
+          </h3>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-900/50">
+          {messages.map((msg, idx) => {
+            const isSystem = msg.sender === "Sistema";
+            const isMe = msg.sender === username;
+
+            if (msg.type === "connection_established") {
+              return (
+                <div
+                  key={idx}
+                  className="text-center text-xs text-gray-500 my-2"
+                >
+                  {msg.message}
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={idx}
+                className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
+              >
+                {!isSystem && !isMe && (
+                  <span className="text-xs text-gray-400 mb-1 ml-1">
+                    {msg.sender}
+                  </span>
+                )}
+                {isMe && !isSystem && (
+                  <span className="text-xs text-indigo-400 mb-1 mr-1">Yo</span>
+                )}
+
+                <div
+                  className={`px-4 py-2 rounded-2xl max-w-[90%] text-sm ${
+                    isSystem
+                      ? "bg-yellow-900/40 text-yellow-200 border border-yellow-700/50 w-full text-center rounded-lg"
+                      : isMe
+                        ? "bg-indigo-600 text-white rounded-br-sm"
+                        : "bg-gray-700 text-gray-200 rounded-bl-sm"
+                  }`}
+                >
+                  {isSystem && (
+                    <strong className="block text-xs uppercase tracking-wider mb-1 text-yellow-500">
+                      Notificación
+                    </strong>
+                  )}
+                  {msg.text}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="p-3 bg-gray-800 border-t border-gray-700">
+          <form onSubmit={handleSendChat} className="flex gap-2">
+            <input
+              className="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none"
+              placeholder="Comentar..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              disabled={!selectedProject}
+            />
+            <button
+              type="submit"
+              disabled={!selectedProject}
+              className="bg-indigo-600 p-2 rounded-lg text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              <Send size={18} />
+            </button>
+          </form>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+export default App;

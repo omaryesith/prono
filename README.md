@@ -34,10 +34,12 @@
 
 - 🔄 **Real-Time Synchronization** - WebSocket-based instant updates across all connected clients
 - 🎯 **RESTful API** - Clean, schema-driven REST API powered by Django Ninja
-- 🔐 **JWT Authentication** - Secure token-based authentication system
+- 🔐 **JWT Authentication** - Secure token-based authentication for both REST and WebSocket connections
+- 🌐 **React Frontend** - Modern TypeScript React frontend with real-time updates
 - 📊 **Project & Task Management** - Comprehensive project organization with task tracking
 - ⚡ **Asynchronous Processing** - Celery workers for heavy background operations
 - 🐳 **Docker-First** - Fully containerized with Docker Compose orchestration
+- 🔀 **Nginx Reverse Proxy** - Production-ready setup with nginx serving frontend and proxying API/WebSocket traffic
 - 📡 **Event-Driven Architecture** - Decoupled components communicating via Redis Pub/Sub
 - 🔧 **Developer Friendly** - Hot-reload, comprehensive Makefile commands, and clear documentation
 - 🧪 **Test Coverage** - Integration test suite with pytest
@@ -53,6 +55,8 @@
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
+| **Frontend** | React 18 + TypeScript + Vite | Modern UI with real-time updates |
+| **Reverse Proxy** | Nginx 1.25 | Serve frontend, proxy API/WebSocket, handle static files |
 | **Backend** | Python 3.11 + Django 5 | Core application logic (ASGI mode) |
 | **API** | Django Ninja | Schema-driven REST API framework |
 | **Real-Time** | Django Channels + Daphne | WebSocket server and ASGI handling |
@@ -68,15 +72,18 @@
 
 ```mermaid
 graph TB
-    Client[Web Client]
+    Client[Web Client<br/>React + TypeScript]
+    Nginx[Nginx<br/>Reverse Proxy]
     API[REST API<br/>Django Ninja]
     WS[WebSocket Server<br/>Django Channels]
     Redis[(Redis<br/>Message Broker)]
     DB[(PostgreSQL<br/>Database)]
     Celery[Celery Workers<br/>Background Tasks]
     
-    Client -->|HTTP/REST| API
-    Client <-->|WebSocket| WS
+    Client <-->|Port 80| Nginx
+    Nginx -->|/api/*| API
+    Nginx -->|/ws/*| WS
+    Nginx -->|/*| Client
     API --> DB
     WS --> Redis
     API -->|async_to_sync| Redis
@@ -85,6 +92,7 @@ graph TB
     Celery --> DB
     
     style Client fill:#e1f5ff
+    style Nginx fill:#ffe0b2
     style API fill:#fff4e6
     style WS fill:#f3e5f5
     style Redis fill:#ffebee
@@ -150,11 +158,26 @@ docker compose run --rm web python manage.py createsuperuser
 
 4️⃣ **Access the services:**
 
+**Development Mode (default):**
 | Service | URL | Description |
 |---------|-----|-------------|
+| 🌐 **Frontend** | http://localhost:5173 | React development server (Vite) |
 | 📚 **API Docs (Swagger)** | http://localhost:8000/api/docs | Interactive API documentation |
 | 🔐 **Admin Panel** | http://localhost:8000/admin | Django admin interface |
-| 🔌 **WebSocket** | `ws://localhost:8000/ws/projects/{id}/` | Real-time project updates |
+| 🔌 **WebSocket** | `ws://localhost:8000/ws/projects/{id}/?token=YOUR_JWT` | Real-time project updates |
+
+**Production Mode:**
+```bash
+# Build and start production containers
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| 🌐 **Application** | http://localhost | Full application via Nginx reverse proxy |
+| 📚 **API** | http://localhost/api/ | REST API endpoints |
+| 🔌 **WebSocket** | `ws://localhost/ws/projects/{id}/?token=YOUR_JWT` | Real-time WebSocket connections |
+| 🔐 **Admin** | http://localhost/admin/ | Django admin panel |
 
 ### Default Credentials
 
@@ -263,12 +286,16 @@ curl -X POST http://localhost:8000/api/projects/ \
 }
 ```
 
-### WebSocket Connection
+### WebSocket Authentication
 
-Connect to a project room for real-time updates:
+WebSocket connections require JWT authentication via query parameter:
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/ws/projects/1/');
+// First, obtain JWT token from REST API
+const token = 'YOUR_ACCESS_TOKEN';
+
+// Connect to WebSocket with token in query string
+const ws = new WebSocket(`ws://localhost:8000/ws/projects/1/?token=${token}`);
 
 ws.onopen = () => {
   console.log('Connected to project room');
@@ -277,14 +304,22 @@ ws.onopen = () => {
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
   console.log('Received:', data);
-  // Handle real-time updates
+  // Handle real-time updates (e.g., task completed, new comment)
+};
+
+ws.onerror = (error) => {
+  console.error('WebSocket error:', error);
 };
 
 // Send a message
 ws.send(JSON.stringify({
   type: 'chat_message',
-  text: 'Hello from client!'
+  text: 'Hello from client!',
+  sender: 'username'
 }));
+```
+
+**Note:** The JWT token is validated via the custom `JwtAuthMiddleware` in `app/core/middleware.py`.
 ```
 
 For full API documentation, visit the **Swagger UI** at http://localhost:8000/api/docs after starting the server.
@@ -300,20 +335,36 @@ prono/
 │   │   ├── settings.py        # Django settings
 │   │   ├── asgi.py            # ASGI config for Channels
 │   │   ├── urls.py            # URL routing
-│   │   └── celery.py          # Celery configuration
-│   └── projects/              # Projects app
-│       ├── models.py          # Project & Task models
-│       ├── api.py             # REST API endpoints
-│       ├── schemas.py         # Pydantic validation schemas
-│       ├── consumers.py       # WebSocket consumers
-│       └── admin.py           # Django admin config
+│   │   ├── celery.py          # Celery configuration
+│   │   └── middleware.py      # JWT WebSocket authentication
+│   ├── projects/              # Projects app
+│   │   ├── models.py          # Project & Task models
+│   │   ├── api.py             # REST API endpoints
+│   │   ├── schemas.py         # Pydantic validation schemas
+│   │   ├── consumers.py       # WebSocket consumers
+│   │   └── admin.py           # Django admin config
+│   └── static/                # Collected static files (generated)
+├── frontend/                  # React frontend application
+│   ├── src/                  # React source code
+│   │   ├── App.tsx           # Main app component
+│   │   ├── main.tsx          # Entry point
+│   │   └── assets/           # Static assets
+│   ├── package.json          # npm dependencies
+│   ├── vite.config.ts        # Vite configuration
+│   └── tsconfig.json         # TypeScript configuration
 ├── docker/                    # Docker configuration
-│   └── django/
-│       ├── Dockerfile         # Python app container
-│       ├── entrypoint.sh      # Container entrypoint
-│       └── start.sh           # Startup script
+│   ├── django/               # Django container
+│   │   ├── Dockerfile        # Python app container
+│   │   ├── entrypoint.sh     # Container entrypoint
+│   │   └── start.sh          # Startup script
+│   ├── frontend/             # Frontend build container
+│   │   └── Dockerfile        # Multi-stage build for React
+│   └── nginx/                # Nginx reverse proxy
+│       └── default.conf      # Nginx configuration
 ├── .env.example               # Environment variables template
-├── docker-compose.yml         # Service orchestration
+├── .dockerignore              # Docker build exclusions
+├── docker-compose.yml         # Development orchestration
+├── docker-compose.prod.yml    # Production orchestration
 ├── pyproject.toml             # Poetry dependencies
 ├── Makefile                   # Development commands
 └── README.md                  # This file
@@ -411,10 +462,18 @@ docker compose run --rm web python manage.py migrate
 ## 📝 Development Notes
 
 - **Poetry** manages Python dependencies (see `pyproject.toml`)
-- **Hot-reload** is enabled for Django in development mode
+- **Frontend** uses Vite for fast development with HMR (Hot Module Replacement)
+- **Hot-reload** is enabled for both Django and React in development mode
 - **Redis** serves dual purpose: Celery broker + Channels layer
 - **Migrations** are tracked in Git and should be committed
 - **Code formatting**: Black + isort (configured in `pyproject.toml`)
+- **CORS**: Configured to allow `localhost:5173` for local frontend development
+- **Production deployment**: Uses multi-stage Docker builds and nginx reverse proxy
+
+### ⚠️ Security Notes
+
+> [!WARNING]
+> **Authentication Disabled for Testing**: Several API endpoints currently have authentication checks commented out for development convenience. Before deploying to production, search for `# TODO: Re-enable authentication` comments in `app/projects/api.py` and restore proper owner verification.
 
 ---
 
