@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Send,
-  User,
   Server,
   Wifi,
   WifiOff,
@@ -11,7 +10,7 @@ import {
   Box,
 } from "lucide-react";
 
-// --- CONFIGURACIÓN ---
+// --- CONFIGURATION ---
 const API_URL = "http://localhost:80/api";
 const WS_URL = "ws://localhost:80/ws/projects";
 
@@ -53,7 +52,7 @@ const usePronoSocket = (projectId: number | null, token: string | null) => {
   useEffect(() => {
     if (!projectId || !token) return;
 
-    // Resetear mensajes al cambiar de proyecto
+    // Reset messages when changing projects
     setMessages([]);
 
     const ws = new WebSocket(`${WS_URL}/${projectId}/?token=${token}`);
@@ -62,12 +61,12 @@ const usePronoSocket = (projectId: number | null, token: string | null) => {
 
     ws.onopen = () => {
       setStatus("CONNECTED");
-      console.log("🔌 WS Conectado");
+      console.log("🔌 WS Connected");
     };
 
     ws.onclose = () => {
       setStatus("DISCONNECTED");
-      console.log("🔌 WS Desconectado");
+      console.log("🔌 WS Disconnected");
     };
 
     ws.onmessage = (event) => {
@@ -124,7 +123,7 @@ function App() {
 
   // --- API CALLS ---
 
-  // 1. Cargar Proyectos
+  // 1. Load Projects
   const fetchProjects = useCallback(async () => {
     if (!token) return;
     const res = await fetch(`${API_URL}/projects/`, {
@@ -133,27 +132,27 @@ function App() {
     if (res.ok) {
       const data = await res.json();
       setProjects(data);
-      // Seleccionar el primero por defecto si no hay seleccionado
+      // Select the first one by default if none selected
       if (!selectedProject && data.length > 0) setSelectedProject(data[0]);
     }
   }, [token, selectedProject]);
 
-  // 2. Cargar Tareas (Cuando cambia el proyecto)
+  // 2. Load Tasks (When project changes)
   const fetchTasks = useCallback(async () => {
     if (!token || !selectedProject) return;
-    // Django Ninja endpoint para detalles del proyecto (incluye tareas anidadas o lo hacemos aparte)
-    // Usaremos el endpoint de detalle que creamos: GET /projects/{id}
+    // Django Ninja endpoint for project details (includes nested tasks or separate)
+    // We'll use the detail endpoint we created: GET /projects/{id}
     const res = await fetch(`${API_URL}/projects/${selectedProject.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
       const data = await res.json();
-      // Asumiendo que el serializer ProjectOut devuelve 'tasks'
+      // Assuming the ProjectOut serializer returns 'tasks'
       setTasks(data.tasks || []);
     }
   }, [token, selectedProject]);
 
-  // Efectos de carga
+  // Loading effects
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
@@ -175,11 +174,11 @@ function App() {
         const data: AuthToken = await response.json();
         setToken(data.access);
       } else {
-        alert("Credenciales incorrectas");
+        alert("Invalid credentials");
       }
     } catch (err) {
       console.error(err);
-      alert("Error de conexión");
+      alert("Connection error");
     }
   };
 
@@ -213,7 +212,7 @@ function App() {
     });
     if (res.ok) {
       setNewTaskTitle("");
-      fetchTasks(); // Recargar tareas
+      fetchTasks(); // Reload tasks
     }
   };
 
@@ -223,10 +222,10 @@ function App() {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
-      fetchTasks(); // Actualizar UI local
-      // NOTA: La notificación WebSocket llegará por el chat automáticamente ;)
+      fetchTasks(); // Update local UI
+      // NOTE: WebSocket notification will arrive via chat automatically ;)
     } else {
-      alert("Error o no tienes permisos");
+      alert("Error or insufficient permissions");
     }
   };
 
@@ -251,19 +250,19 @@ function App() {
             Prono System
           </h1>
           <p className="text-gray-400 text-center mb-6">
-            Plataforma de Gestión en Tiempo Real
+            Real-Time Management Platform
           </p>
           <form onSubmit={handleLogin} className="space-y-4">
             <input
               type="text"
-              placeholder="Usuario"
+              placeholder="Username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
             />
             <input
               type="password"
-              placeholder="Contraseña"
+              placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -272,7 +271,7 @@ function App() {
               type="submit"
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition"
             >
-              Ingresar
+              Sign In
             </button>
           </form>
         </div>
@@ -287,7 +286,7 @@ function App() {
       <aside className="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
         <div className="p-4 border-b border-gray-700 flex items-center gap-2">
           <Box className="text-indigo-500" />
-          <h2 className="font-bold text-lg">Proyectos</h2>
+          <h2 className="font-bold text-lg">Projects</h2>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -306,7 +305,7 @@ function App() {
           <form onSubmit={handleCreateProject} className="flex gap-2">
             <input
               className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white"
-              placeholder="Nuevo proyecto..."
+              placeholder="New project..."
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
             />
@@ -327,10 +326,10 @@ function App() {
             <h1 className="text-xl font-bold text-white">
               {selectedProject
                 ? selectedProject.name
-                : "Selecciona un proyecto"}
+                : "Select a project"}
             </h1>
             <p className="text-xs text-gray-400">
-              ID: {selectedProject?.id} • Dueño ID: {selectedProject?.owner_id}
+              ID: {selectedProject?.id} • Owner ID: {selectedProject?.owner_id}
             </p>
           </div>
           <div
@@ -347,12 +346,12 @@ function App() {
 
         {selectedProject ? (
           <div className="flex-1 p-6 overflow-y-auto">
-            {/* Formulario Nueva Tarea */}
+            {/* New Task Form */}
             <div className="mb-8">
               <form onSubmit={handleCreateTask} className="flex gap-4">
                 <input
                   className="flex-1 bg-gray-800 border border-gray-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="¿Qué hay que hacer hoy?"
+                  placeholder="What needs to be done today?"
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
                 />
@@ -360,16 +359,16 @@ function App() {
                   type="submit"
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2"
                 >
-                  <Plus size={20} /> Agregar Tarea
+                  <Plus size={20} /> Add Task
                 </button>
               </form>
             </div>
 
-            {/* Lista de Tareas */}
+            {/* Task List */}
             <div className="space-y-3">
               {tasks.length === 0 && (
                 <p className="text-gray-500 text-center mt-10">
-                  No hay tareas aún.
+                  No tasks yet.
                 </p>
               )}
               {tasks.map((task) => (
@@ -395,12 +394,12 @@ function App() {
                       onClick={() => handleCompleteTask(task.id)}
                       className="flex items-center gap-2 px-3 py-1.5 bg-green-600/20 text-green-400 hover:bg-green-600 hover:text-white rounded-lg border border-green-600/30 transition"
                     >
-                      <CheckCircle size={16} /> Completar
+                      <CheckCircle size={16} /> Complete
                     </button>
                   )}
                   {task.is_completed && (
                     <span className="text-green-500 text-sm font-medium px-3">
-                      Completada
+                      Completed
                     </span>
                   )}
                 </div>
@@ -409,7 +408,7 @@ function App() {
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-500">
-            Selecciona un proyecto para comenzar
+            Select a project to get started
           </div>
         )}
       </main>
@@ -419,13 +418,13 @@ function App() {
         <div className="p-4 border-b border-gray-700 bg-gray-800">
           <h3 className="font-bold flex items-center gap-2">
             <Server size={18} className="text-indigo-400" />
-            Actividad del Proyecto
+            Project Activity
           </h3>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-900/50">
           {messages.map((msg, idx) => {
-            const isSystem = msg.sender === "Sistema";
+            const isSystem = msg.sender === "System";
             const isMe = msg.sender === username;
 
             if (msg.type === "connection_established") {
@@ -434,7 +433,7 @@ function App() {
                   key={idx}
                   className="text-center text-xs text-gray-500 my-2"
                 >
-                  {msg.message}
+                  {msg.text}
                 </div>
               );
             }
@@ -450,21 +449,20 @@ function App() {
                   </span>
                 )}
                 {isMe && !isSystem && (
-                  <span className="text-xs text-indigo-400 mb-1 mr-1">Yo</span>
+                  <span className="text-xs text-indigo-400 mb-1 mr-1">Me</span>
                 )}
 
                 <div
-                  className={`px-4 py-2 rounded-2xl max-w-[90%] text-sm ${
-                    isSystem
-                      ? "bg-yellow-900/40 text-yellow-200 border border-yellow-700/50 w-full text-center rounded-lg"
-                      : isMe
-                        ? "bg-indigo-600 text-white rounded-br-sm"
-                        : "bg-gray-700 text-gray-200 rounded-bl-sm"
-                  }`}
+                  className={`px-4 py-2 rounded-2xl max-w-[90%] text-sm ${isSystem
+                    ? "bg-yellow-900/40 text-yellow-200 border border-yellow-700/50 w-full text-center rounded-lg"
+                    : isMe
+                      ? "bg-indigo-600 text-white rounded-br-sm"
+                      : "bg-gray-700 text-gray-200 rounded-bl-sm"
+                    }`}
                 >
                   {isSystem && (
                     <strong className="block text-xs uppercase tracking-wider mb-1 text-yellow-500">
-                      Notificación
+                      Notification
                     </strong>
                   )}
                   {msg.text}
@@ -478,7 +476,7 @@ function App() {
           <form onSubmit={handleSendChat} className="flex gap-2">
             <input
               className="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none"
-              placeholder="Comentar..."
+              placeholder="Comment..."
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               disabled={!selectedProject}
