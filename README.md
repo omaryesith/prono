@@ -139,6 +139,9 @@ cd prono
 cp .env.example .env
 # The .env file contains safe defaults for local development
 # Modify if needed for your environment
+
+# Create symlink for Django to read .env from app/ directory
+ln -sf ../.env app/.env
 ```
 
 3️⃣ **Start the application:**
@@ -320,7 +323,6 @@ ws.send(JSON.stringify({
 ```
 
 **Note:** The JWT token is validated via the custom `JwtAuthMiddleware` in `app/core/middleware.py`.
-```
 
 For full API documentation, visit the **Swagger UI** at http://localhost:8000/api/docs after starting the server.
 
@@ -338,7 +340,7 @@ prono/
 │   │   ├── celery.py          # Celery configuration
 │   │   └── middleware.py      # JWT WebSocket authentication
 │   ├── projects/              # Projects app
-│   │   ├── models.py          # Project & Task models
+│   │   ├── models.py          # Project and Task models
 │   │   ├── api.py             # REST API endpoints
 │   │   ├── schemas.py         # Pydantic validation schemas
 │   │   ├── consumers.py       # WebSocket consumers
