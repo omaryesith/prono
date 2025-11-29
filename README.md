@@ -379,6 +379,7 @@ prono/
 │   └── nginx/                # Nginx reverse proxy
 │       └── default.conf      # Nginx configuration
 ├── .env.example               # Environment variables template
+├── .gitignore                  # Git ignore rules
 ├── .dockerignore              # Docker build exclusions
 ├── docker-compose.yml         # Development orchestration
 ├── docker-compose.prod.yml    # Production orchestration
