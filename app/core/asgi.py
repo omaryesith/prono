@@ -8,9 +8,9 @@ django_asgi_app = get_asgi_application()
 
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.urls import path
-from projects.consumers import ProjectConsumer
 
 from core.middleware import JwtAuthMiddleware
+from projects.consumers import ProjectConsumer
 
 application = ProtocolTypeRouter(
     {

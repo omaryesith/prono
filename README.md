@@ -42,7 +42,6 @@
 - 🔀 **Nginx Reverse Proxy** - Production-ready setup with nginx serving frontend and proxying API/WebSocket traffic
 - 📡 **Event-Driven Architecture** - Decoupled components communicating via Redis Pub/Sub
 - 🔧 **Developer Friendly** - Hot-reload, comprehensive Makefile commands, and clear documentation
-- 🧪 **Test Coverage** - Integration test suite with pytest
 - 📝 **Auto-Generated Docs** - Interactive Swagger/OpenAPI documentation
 
 ---
@@ -212,9 +211,6 @@ make logs            # View real-time logs from all services
 make migrate         # Run pending migrations
 make makemigrations  # Create new migrations
 
-# Testing & QA
-make test            # Run pytest test suite
-
 # Maintenance
 make clean           # Remove __pycache__ and volumes
 ```
@@ -293,6 +289,7 @@ curl -X POST http://localhost:8000/api/projects/ \
 
 WebSocket connections require JWT authentication via query parameter:
 
+**Development Mode (direct to Django):**
 ```javascript
 // First, obtain JWT token from REST API
 const token = 'YOUR_ACCESS_TOKEN';
@@ -320,6 +317,15 @@ ws.send(JSON.stringify({
   text: 'Hello from client!',
   sender: 'username'
 }));
+```
+
+**Production Mode (via Nginx reverse proxy):**
+```javascript
+const token = 'YOUR_ACCESS_TOKEN';
+
+// Connect through nginx (no port 8000, just port 80)
+const ws = new WebSocket(`ws://localhost/ws/projects/1/?token=${token}`);
+// In production with domain: ws://yourdomain.com/ws/projects/1/?token=${token}
 ```
 
 **Note:** The JWT token is validated via the custom `JwtAuthMiddleware` in `app/core/middleware.py`.
@@ -394,23 +400,6 @@ Create a `.env` file from `.env.example` and customize as needed:
 
 > [!CAUTION]
 > **Never commit `.env` to version control!** The `.env.example` file contains safe defaults for development only. Always generate strong, unique credentials for production deployments.
-
----
-
-## 🧪 Testing
-
-Run the test suite using pytest:
-
-```bash
-# Using Make
-make test
-
-# Using Docker Compose
-docker compose run --rm web pytest
-
-# Run with coverage
-docker compose run --rm web pytest --cov=app --cov-report=html
-```
 
 ---
 
@@ -494,12 +483,11 @@ Contributions are welcome! Please follow these steps:
 This project uses:
 - **Black** for code formatting
 - **isort** for import sorting
-- **pytest** for testing
 
 Run formatters before committing:
 ```bash
-docker compose run --rm web black app/
-docker compose run --rm web isort app/
+docker compose run --rm web black .
+docker compose run --rm web isort .
 ```
 
 ---
