@@ -44,6 +44,15 @@
 - 🔧 **Developer Friendly** - Hot-reload, comprehensive Makefile commands, and clear documentation
 - 📝 **Auto-Generated Docs** - Interactive Swagger/OpenAPI documentation
 
+### 📸 Screenshot
+
+<div align="center">
+
+![Frontend Demo - Real-time Project Management](docs/images/frontend_demo.png)
+*Real-time collaborative project management interface with WebSocket updates*
+
+</div>
+
 ---
 
 ## 🏗 Architecture
