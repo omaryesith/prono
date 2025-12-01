@@ -71,7 +71,7 @@
 | **Message Broker** | Redis 7 | Pub/Sub for WebSockets & Celery queues |
 | **Database** | PostgreSQL 15 | Primary data persistence |
 | **Task Queue** | Celery | Asynchronous background jobs |
-| **Dependencies** | Poetry | Python package management |
+| **Dependencies** | Poetry 2.2+ | Python package management |
 | **Container** | Docker + Docker Compose | Service orchestration |
 
 </div>
@@ -360,6 +360,8 @@ prono/
 │   │   ├── schemas.py         # Pydantic validation schemas
 │   │   ├── consumers.py       # WebSocket consumers
 │   │   └── admin.py           # Django admin config
+│   ├── pyproject.toml         # Poetry dependencies (PEP 621 format)
+│   ├── poetry.lock            # Poetry lock file
 │   └── static/                # Collected static files (generated)
 ├── frontend/                  # React frontend application
 │   ├── src/                  # React source code
@@ -371,7 +373,7 @@ prono/
 │   └── tsconfig.json         # TypeScript configuration
 ├── docker/                    # Docker configuration
 │   ├── django/               # Django container
-│   │   ├── Dockerfile        # Python app container
+│   │   ├── Dockerfile        # Python app container (Poetry 2.2.1)
 │   │   ├── entrypoint.sh     # Container entrypoint
 │   │   └── start.sh          # Startup script
 │   ├── frontend/             # Frontend build container
@@ -383,7 +385,6 @@ prono/
 ├── .dockerignore              # Docker build exclusions
 ├── docker-compose.yml         # Development orchestration
 ├── docker-compose.prod.yml    # Production orchestration
-├── pyproject.toml             # Poetry dependencies
 ├── Makefile                   # Development commands
 └── README.md                  # This file
 ```
@@ -466,7 +467,9 @@ docker compose run --rm web python manage.py migrate
 
 ## 📝 Development Notes
 
-- **Poetry** manages Python dependencies directly (no `requirements.txt` export)
+- **Poetry 2.2+** manages Python dependencies directly (no `requirements.txt` export)
+  - Dependencies defined in `app/pyproject.toml` using PEP 621 format
+  - Lock file (`app/poetry.lock`) ensures reproducible builds
   - Dependencies installed via `poetry install` in Docker containers
   - Virtual environment located at `/app/.venv` inside containers
   - All Python commands run through Poetry's virtualenv
