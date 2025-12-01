@@ -1,0 +1,50 @@
+[project]
+name = "prono"
+version = "0.1.0"
+description = "Project Management with Real-Time Collaboration (ASGI)"
+authors = [
+    {name = "Omar Yesith Alvarado González", email = "omaryesith@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+
+dependencies = [
+    "Django>=5.0,<6.0",
+    "django-ninja>=1.0,<2.0",
+    "psycopg>=3.1,<4.0",
+    "celery>=5.3,<6.0",
+    "python-decouple>=3.8,<4.0",
+    # ASGI / Real-Time
+    "channels>=4.0,<5.0",
+    "channels-redis>=4.2,<5.0",
+    "daphne>=4.1,<5.0",
+    "django-cors-headers>=4.3,<5.0",
+    # Security
+    "django-ninja-extra",
+    "django-ninja-jwt",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0,<9.0",
+    "pytest-django>=4.8,<5.0",
+    "black>=24.1,<25.0",
+    "isort>=5.13,<6.0",
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false  # This is a project, not a library
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+py_version = 311
+

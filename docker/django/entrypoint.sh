@@ -3,6 +3,9 @@
 set -o errexit
 set -o nounset
 
+# Activate Poetry's virtual environment
+source /app/.venv/bin/activate
+
 postgres_ready() {
   python <<END
 import sys

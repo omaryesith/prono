@@ -2,6 +2,10 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
+# Accept build arguments for Vite environment variables
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
+
 # Copy only package.json to leverage Docker cache
 COPY ./frontend/package.json ./frontend/package-lock.json ./
 

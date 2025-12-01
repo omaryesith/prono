@@ -8,7 +8,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -23,6 +23,7 @@ services:
     command: /start.sh
     volumes:
       - ./app:/app
+      - /app/.venv # Prevent host .venv from overwriting container's .venv
     ports:
       - "8000:8000"
     environment:
@@ -45,9 +46,10 @@ services:
     build:
       context: .
       dockerfile: ./docker/django/Dockerfile
-    command: celery -A core worker -l info
+    command: /start-celery.sh
     volumes:
       - ./app:/app
+      - /app/.venv # Prevent host .venv from overwriting container's .venv
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -62,6 +64,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Prevent host node_modules from overwriting container's
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+      - VITE_WS_URL=ws://localhost:8000/ws/projects
+    stdin_open: true
+    tty: true
 
 volumes:
   postgres_data:

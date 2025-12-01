@@ -9,10 +9,11 @@ import {
   List,
   Box,
 } from "lucide-react";
+import { config } from "./config";
 
 // --- CONFIGURATION ---
-const API_URL = "http://localhost:80/api";
-const WS_URL = "ws://localhost:80/ws/projects";
+const API_URL = config.apiUrl;
+const WS_URL = config.wsUrl;
 
 // --- TYPES ---
 interface Message {

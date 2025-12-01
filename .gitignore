@@ -94,3 +94,4 @@ logs/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+app/.venv/

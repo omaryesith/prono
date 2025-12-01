@@ -12,10 +12,10 @@ ENV PATH="$POETRY_HOME/bin:$PATH"
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
-  libpq5 \
-  netcat-openbsd \
-  curl \
-  && rm -rf /var/lib/apt/lists/*
+    libpq5 \
+    netcat-openbsd \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 -
@@ -29,7 +29,7 @@ RUN chmod +x /entrypoint.sh /start.sh /start-celery.sh
 # Copy application code (includes pyproject.toml and poetry.lock)
 COPY ./app ./
 
-# Install dependencies (including dev for development environment)
-RUN poetry install --no-root
+# Install only production dependencies (no dev packages)
+RUN poetry install --no-root --only main
 
 ENTRYPOINT ["/entrypoint.sh"]

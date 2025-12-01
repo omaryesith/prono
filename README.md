@@ -163,8 +163,8 @@ make setup
 **Option B: Using Docker Compose directly**
 ```bash
 docker compose up --build -d
-docker compose run --rm web python manage.py migrate
-docker compose run --rm web python manage.py createsuperuser
+docker compose exec web poetry run python manage.py migrate
+docker compose exec web poetry run python manage.py createsuperuser
 ```
 
 4️⃣ **Access the services:**
@@ -398,6 +398,7 @@ Create a `.env` file from `.env.example` and customize as needed:
 
 | Variable | Description | Default | Production Notes |
 |----------|-------------|---------|------------------|
+| **Backend** | | | |
 | `SECRET_KEY` | Django secret key | `insecure-dev-key` | ⚠️ **Must change** |
 | `DEBUG` | Debug mode | `True` | ⚠️ Set to `False` |
 | `ALLOWED_HOSTS` | Allowed hostnames | `localhost,127.0.0.1` | Add your domain |
@@ -407,6 +408,9 @@ Create a `.env` file from `.env.example` and customize as needed:
 | `POSTGRES_HOST` | Database host | `db` | - |
 | `POSTGRES_PORT` | Database port | `5432` | - |
 | `REDIS_URL` | Redis connection URL | `redis://redis:6379/0` | - |
+| **Frontend** | | | |
+| `VITE_API_URL` | Backend API URL | `http://localhost:8000/api` | Use `/api` in production |
+| `VITE_WS_URL` | WebSocket URL | `ws://localhost:8000/ws/projects` | Use `/ws/projects` in production |
 
 > [!CAUTION]
 > **Never commit `.env` to version control!** The `.env.example` file contains safe defaults for development only. Always generate strong, unique credentials for production deployments.
@@ -462,14 +466,22 @@ docker compose run --rm web python manage.py migrate
 
 ## 📝 Development Notes
 
-- **Poetry** manages Python dependencies (see `pyproject.toml`)
+- **Poetry** manages Python dependencies directly (no `requirements.txt` export)
+  - Dependencies installed via `poetry install` in Docker containers
+  - Virtual environment located at `/app/.venv` inside containers
+  - All Python commands run through Poetry's virtualenv
 - **Frontend** uses Vite for fast development with HMR (Hot Module Replacement)
+  - Development server runs on port 5173 with hot-reload
+  - Environment variables (`VITE_*`) configured in `docker-compose.yml`
+  - Production build uses multi-stage Dockerfile with Nginx
 - **Hot-reload** is enabled for both Django and React in development mode
 - **Redis** serves dual purpose: Celery broker + Channels layer
 - **Migrations** are tracked in Git and should be committed
 - **Code formatting**: Black + isort (configured in `pyproject.toml`)
 - **CORS**: Configured to allow `localhost:5173` for local frontend development
 - **Production deployment**: Uses multi-stage Docker builds and nginx reverse proxy
+  - Frontend: Vite build → Nginx serves static files
+  - Backend: Poetry with `--only main` (excludes dev dependencies)
 
 ### ⚠️ Security Notes
 
