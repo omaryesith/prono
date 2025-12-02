@@ -14,7 +14,7 @@
 
 > [!NOTE]
 > **Portfolio Demonstration Project**  
-> This is a demonstration project showcasing modern web development practices, real-time communication patterns, and full-stack Python architecture. It is part of my professional portfolio to demonstrate technical skills in Django, WebSockets, event-driven design, and containerized deployment.
+> This is a demonstration project showcasing a **Real-Time Collaborative Project Management Platform**, emphasizing event-driven architecture and hybrid REST + WebSocket communication. It is part of my professional portfolio to demonstrate technical skills in Django Channels, Redis Pub/Sub, React with TypeScript, and scalable containerized deployment.
 
 [Features](#-features) •
 [Architecture](#-architecture) •
